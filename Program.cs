@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using System.Net;
 using Figgle;
 
-// Ana sınıf (BaseClass) tanımlanıyor
 public abstract class BaseClass
 {
     public string Ad { get; set; }
@@ -29,7 +28,6 @@ public abstract class BaseClass
     public abstract void Yazdir();
 }
 
-// Kullanıcı sınıfı, BaseClass'tan miras alır
 public class Kullanici : BaseClass
 {
     public Kullanici(string ad, string soyad, string tc, string kullaniciAdi, string sifre)
@@ -41,7 +39,6 @@ public class Kullanici : BaseClass
     }
 }
 
-// Banka işlemleri sınıfı
 public class BankaIslemleri
 {
     public double Bakiye { get; set; }
@@ -161,7 +158,7 @@ public class EmailServisi
             var smtpClient = new SmtpClient("smtp.gmail.com")
             {
                 Port = 587,
-                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), // E-posta bilgilerinizi buraya yazın
+                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), 
                 EnableSsl = true
             };
 
@@ -189,7 +186,6 @@ public class EmailServisi
     }
 }
 
-// Ana Program
 class Program
 {
     
@@ -290,7 +286,7 @@ class Program
         if (mevcutKullanici != null)
         {
             await KullaniciIslemleri(mevcutKullanici);
-            girisYapildi = false;  // İşlemler bittikten sonra ana menüye dönüş
+            girisYapildi = false;  
         }
     }
     static Kullanici Kaydol(string dosyaYolu)
@@ -304,20 +300,20 @@ class Program
             
             string tc = "";
 
-            // TC Kimlik numarasını alın ve geçerliliğini kontrol edin
+            
             while (true)
             {
                 Console.WriteLine("TC kimlik numaranızı girin:");
 
                 tc = Console.ReadLine();
 
-                // TC kimlik numarasının 11 haneli olup olmadığını kontrol et
+                
                 if (tc.Length == 11 && long.TryParse(tc, out _))
                 {
                     if (TcKimlikNoDogrulama(tc))
                     {
                         Console.WriteLine("Geçerli TC Kimlik numarası.");
-                        break; // Geçerli ise döngüden çık
+                        break; 
                     }
                     else
                     {
@@ -344,15 +340,15 @@ class Program
                 Console.WriteLine("Lütfen 6 haneli bir şifre girin (Sadece sayılar):");
                 sifre = Console.ReadLine();
 
-                // Şifrenin sadece sayılardan oluşup oluşmadığını kontrol et
+                
                 if (sifre.Length == 6 && long.TryParse(sifre, out _))
                 {
                     Console.WriteLine("Şifreniz başarıyla kabul edildi.");
-                    break; // Geçerli şifre girildiği için döngüden çık
+                    break;
                 }
                 else
                 {
-                    Console.Beep();  // Geçersiz giriş uyarısı
+                    Console.Beep();  
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Geçersiz şifre! Şifre sadece sayılardan oluşmalı ve 6 haneli olmalıdır.");
                     Console.ResetColor();
@@ -379,7 +375,7 @@ class Program
     }
     static bool TcKimlikNoDogrulama(string tc)
     {
-        // TC kimlik numarasının 11 haneli ve rakamlardan oluştuğu kontrolü burada yapılıyor
+       
         if (tc.Length != 11)
             return false;
 
@@ -466,7 +462,7 @@ class Program
 
         while (true)
         {
-            //Console.WriteLine("\n1. Para yatır\n2. Para çek\n3. Bakiye görüntüle\n4. Döviz kuru sorgula\n5. Çıkış");
+            
             string menu = "\n1. Para yatır\n2. Para çek\n3. Bakiye görüntüle\n4. Döviz kuru sorgula\n5. Çıkış";
 
             // Konsol ekranının genişliğini al
