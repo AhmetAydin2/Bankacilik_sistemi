@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
@@ -7,7 +7,9 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using System.Net;
 using Figgle;
+using Newtonsoft.Json.Linq;
 
+// Ana sınıf (BaseClass) tanımlanıyor
 public abstract class BaseClass
 {
     public string Ad { get; set; }
@@ -15,30 +17,34 @@ public abstract class BaseClass
     public string TC { get; set; }
     public string KullaniciAdi { get; set; }
     public string Sifre { get; set; }
+    public string Email { get; set; }  // E-posta adresi eklendi
 
-    public BaseClass(string ad, string soyad, string tc, string kullaniciAdi, string sifre)
+    public BaseClass(string ad, string soyad, string tc, string kullaniciAdi, string sifre, string email)
     {
         Ad = ad;
         Soyad = soyad;
         TC = tc;
         KullaniciAdi = kullaniciAdi;
         Sifre = sifre;
+        Email = email;  // E-posta adresi kaydedildi
     }
 
     public abstract void Yazdir();
 }
 
+// Kullanıcı sınıfı, BaseClass'tan miras alır
 public class Kullanici : BaseClass
 {
-    public Kullanici(string ad, string soyad, string tc, string kullaniciAdi, string sifre)
-        : base(ad, soyad, tc, kullaniciAdi, sifre) { }
+    public Kullanici(string ad, string soyad, string tc, string kullaniciAdi, string sifre, string email)
+        : base(ad, soyad, tc, kullaniciAdi, sifre, email) { }
 
     public override void Yazdir()
     {
-        Console.WriteLine($"Kullanıcı Adı: {KullaniciAdi}, Ad: {Ad}, Soyad: {Soyad}, TC: {TC}");
+        Console.WriteLine($"Kullanıcı Adı: {KullaniciAdi}, Ad: {Ad}, Soyad: {Soyad}, TC: {TC}, E-posta: {Email}");
     }
 }
 
+// Banka işlemleri sınıfı
 public class BankaIslemleri
 {
     public double Bakiye { get; set; }
@@ -48,7 +54,7 @@ public class BankaIslemleri
         Bakiye = 0; // Başlangıçta bakiye sıfır.
     }
 
-    public void ParaYatir(double miktar)
+    public void ParaYatir(double miktar, string email)
     {
         if (miktar > 0)
         {
@@ -56,6 +62,9 @@ public class BankaIslemleri
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{miktar} TL yatırıldı. Güncel bakiye: {Bakiye} TL");
             Console.ResetColor();
+
+            // Para yatırma işlemi tamamlandı, e-posta gönderme
+            EmailServisi.SendParaYatirDekontu(email, miktar, Bakiye);
         }
         else
         {
@@ -66,33 +75,143 @@ public class BankaIslemleri
         }
     }
 
-    public void ParaCek(double miktar)
+    public void ParaCek(double miktar, string email)
     {
         if (miktar > 0 && miktar <= Bakiye)
         {
             Bakiye -= miktar;
-            Console.ForegroundColor= ConsoleColor.Green;
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{miktar} TL çekildi. Güncel bakiye: {Bakiye} TL");
-            Console.ResetColor();   
+            Console.ResetColor();
+
+            // Para çekme dekontu gönderme
+            EmailServisi.SendParaCekmeDekontu(email, miktar, Bakiye);
         }
         else
         {
             Console.Beep();
-            Console.ForegroundColor= ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Geçersiz miktar veya yetersiz bakiye.");
-            Console.ResetColor();   
+            Console.ResetColor();
         }
     }
 
     public void BakiyeGoruntule()
     {
-        Console.ForegroundColor=ConsoleColor.Blue;
+        Console.ForegroundColor = ConsoleColor.Blue;
         Console.WriteLine($"Güncel bakiyeniz: {Bakiye} TL");
         Console.ResetColor();
     }
 }
 
+// E-posta hizmeti
+public class EmailServisi
+{
+    public static void SendPasswordResetEmail(string email, string yeniSifre)
+    {
+        try
+        {
+            var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), // E-posta bilgilerinizi buraya yazın
+                EnableSsl = true
+            };
 
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress("bankaciliksistem2@gmail.com"),
+                Subject = "Şifre Sıfırlama",
+                Body = $"Şifreniz sıfırlandı. Yeni şifreniz: {yeniSifre}",
+                IsBodyHtml = true
+            };
+            mailMessage.To.Add(email);
+
+            smtpClient.Send(mailMessage);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Şifre sıfırlama e-postası gönderildi.");
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            Console.Beep();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"E-posta gönderilemedi: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+
+    // Para çekme dekontu gönderme metodu
+    public static void SendParaCekmeDekontu(string email, double miktar, double bakiye)
+    {
+        try
+        {
+            var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), // E-posta bilgilerinizi buraya yazın
+                EnableSsl = true
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress("bankaciliksistem2@gmail.com"),
+                Subject = "Para Çekme Dekontu",
+                Body = $"Merhaba,\n\n{miktar} TL tutarında bir para çekme işlemi gerçekleştirdiniz. Güncel bakiyeniz: {bakiye} TL'dir.\n\nİyi günler dileriz.",
+                IsBodyHtml = false
+            };
+            mailMessage.To.Add(email);
+
+            smtpClient.Send(mailMessage);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Para çekme dekontu e-posta ile gönderildi.");
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            Console.Beep();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"E-posta gönderilemedi: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+    public static void SendParaYatirDekontu(string email, double miktar, double bakiye)
+    {
+        try
+        {
+            var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), 
+                EnableSsl = true
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress("bankaciliksistem2@gmail.com"),
+                Subject = "Para Yatırma Dekontu",
+                Body = $"Merhaba,\n\n{miktar} TL tutarında bir para yatırma işlemi gerçekleştirdiniz. Güncel bakiyeniz: {bakiye} TL'dir.\n\nİyi günler dileriz.",
+                IsBodyHtml = false
+            };
+            mailMessage.To.Add(email);
+
+            smtpClient.Send(mailMessage);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Para yatırma dekontu e-posta ile gönderildi.");
+            Console.ResetColor();
+        }
+        catch (Exception ex)
+        {
+            Console.Beep();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"E-posta gönderilemedi: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
+
+}
+
+// Döviz kuru bilgisi alma
 public class DövizKuru
 {
     private static readonly string ApiKey = "ebab55e4bbf09a492bd6084e"; // API anahtarınızı buraya yazın
@@ -127,7 +246,7 @@ public class DövizKuru
                     Console.ResetColor();
                     return;
                 }
-                
+
             }
             catch (Exception ex)
             {
@@ -139,8 +258,6 @@ public class DövizKuru
         }
     }
 }
-
-// API'den gelen döviz kuru yanıtını temsil eden model
 public class DövizKuruYanıt
 {
     public bool Success { get; set; }
@@ -148,47 +265,9 @@ public class DövizKuruYanıt
     public Dictionary<string, double> Rates { get; set; }
 }
 
-// E-posta hizmeti
-public class EmailServisi
-{
-    public static void SendPasswordResetEmail(string email, string yeniSifre)
-    {
-        try
-        {
-            var smtpClient = new SmtpClient("smtp.gmail.com")
-            {
-                Port = 587,
-                Credentials = new NetworkCredential("bankaciliksistem2@gmail.com", "ldzh sowl wcmr lgac\r\n"), 
-                EnableSsl = true
-            };
-
-            var mailMessage = new MailMessage
-            {
-                From = new MailAddress("bankaciliksistem2@gmail.com"),
-                Subject = "Şifre Sıfırlama",
-                Body = $"Şifreniz sıfırlandı. Yeni şifreniz: {yeniSifre}",
-                IsBodyHtml = true
-            };
-            mailMessage.To.Add(email);
-
-            smtpClient.Send(mailMessage);
-            Console.ForegroundColor= ConsoleColor.Green;
-            Console.WriteLine("Şifre sıfırlama e-postası gönderildi.");
-            Console.ResetColor();
-        }
-        catch (Exception ex)
-        {
-            Console.Beep();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"E-posta gönderilemedi: {ex.Message}");
-            Console.ResetColor();
-        }
-    }
-}
-
+// Ana Program
 class Program
 {
-    
     static async Task Main(string[] args)
     {
         Console.ForegroundColor = ConsoleColor.Blue;
@@ -286,9 +365,28 @@ class Program
         if (mevcutKullanici != null)
         {
             await KullaniciIslemleri(mevcutKullanici);
-            girisYapildi = false;  
+            girisYapildi = false;  // İşlemler bittikten sonra ana menüye dönüş
         }
     }
+    /*
+    static async Task DovizKuruOgren()
+    {
+        Console.WriteLine("Döviz kuru öğrenmek istediğiniz para birimini girin (örn: USD, EUR):");
+        string fromCurrency = Console.ReadLine().ToUpper();
+        Console.WriteLine("Hangi para birimine çevirmek istersiniz (örn: TRY, EUR):");
+        string toCurrency = Console.ReadLine().ToUpper();
+
+        double dovizKuru = await DovizKuru.GetDovizKuru(fromCurrency, toCurrency);
+
+        if (dovizKuru != -1)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"{fromCurrency} -> {toCurrency} kuru: {dovizKuru}");
+            Console.ResetColor();
+        }
+    }
+    */
+
     static Kullanici Kaydol(string dosyaYolu)
     {
         try
@@ -297,23 +395,23 @@ class Program
             string ad = Console.ReadLine();
             Console.WriteLine("Soyadınızı girin:");
             string soyad = Console.ReadLine();
-            
+
             string tc = "";
 
-            
+            // TC Kimlik numarasını alın ve geçerliliğini kontrol edin
             while (true)
             {
                 Console.WriteLine("TC kimlik numaranızı girin:");
 
                 tc = Console.ReadLine();
 
-                
+                // TC kimlik numarasının 11 haneli olup olmadığını kontrol et
                 if (tc.Length == 11 && long.TryParse(tc, out _))
                 {
                     if (TcKimlikNoDogrulama(tc))
                     {
                         Console.WriteLine("Geçerli TC Kimlik numarası.");
-                        break; 
+                        break; // Geçerli ise döngüden çık
                     }
                     else
                     {
@@ -331,8 +429,9 @@ class Program
                     Console.ResetColor();
                 }
             }
+
             string kullaniciAdi = $"{ad.ToLower()} {soyad.ToLower()}";
-            
+
             string sifre;
 
             while (true)
@@ -340,22 +439,25 @@ class Program
                 Console.WriteLine("Lütfen 6 haneli bir şifre girin (Sadece sayılar):");
                 sifre = Console.ReadLine();
 
-                
+                // Şifrenin sadece sayılardan oluşup oluşmadığını kontrol et
                 if (sifre.Length == 6 && long.TryParse(sifre, out _))
                 {
                     Console.WriteLine("Şifreniz başarıyla kabul edildi.");
-                    break;
+                    break; // Geçerli şifre girildiği için döngüden çık
                 }
                 else
                 {
-                    Console.Beep();  
+                    Console.Beep();  // Geçersiz giriş uyarısı
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Geçersiz şifre! Şifre sadece sayılardan oluşmalı ve 6 haneli olmalıdır.");
                     Console.ResetColor();
                 }
             }
 
-            Kullanici yeniKullanici = new Kullanici(ad, soyad, tc, kullaniciAdi, sifre);
+            Console.WriteLine("E-posta adresinizi girin:");
+            string email = Console.ReadLine(); // E-posta alınacak
+
+            Kullanici yeniKullanici = new Kullanici(ad, soyad, tc, kullaniciAdi, sifre, email);  // E-posta adresi de kaydedilecek
 
             string jsonVerisi = File.Exists(dosyaYolu) ? File.ReadAllText(dosyaYolu) : "[]";
             var kullanicilar = JsonConvert.DeserializeObject<List<Kullanici>>(jsonVerisi) ?? new List<Kullanici>();
@@ -371,11 +473,11 @@ class Program
             Console.WriteLine($"Kayit sırasında bir hata oluştu: {ex.Message}");
             return null;
         }
-    
     }
+
     static bool TcKimlikNoDogrulama(string tc)
     {
-       
+        // TC kimlik numarasının 11 haneli ve rakamlardan oluştuğu kontrolü burada yapılıyor
         if (tc.Length != 11)
             return false;
 
@@ -415,102 +517,71 @@ class Program
             }
         }
         Console.Beep();
-        Console.ForegroundColor= ConsoleColor.Red;    
+        Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("Kullanıcı adı veya şifre yanlış.");
         Console.ResetColor();
         return null;
-        Console.ReadKey();
     }
 
     static void SifreUnut(string dosyaYolu)
     {
-        Console.WriteLine("Kullanıcı adı girin (Ad Soyad biçiminde):");
-        string kullaniciAdi = Console.ReadLine();
         Console.WriteLine("E-posta adresinizi girin:");
         string email = Console.ReadLine();
 
-        // Burada e-posta doğrulaması yapılabilir
-        Random rastgele = new Random();
-        string yeniSifre = $"{rastgele.Next(100000, 999999)}";  // 6 haneli yeni şifre
-
-        // Kullanıcının JSON dosyasındaki verilerini oku
         string jsonVerisi = File.Exists(dosyaYolu) ? File.ReadAllText(dosyaYolu) : "[]";
         var kullanicilar = JsonConvert.DeserializeObject<List<Kullanici>>(jsonVerisi);
 
-        // Kullanıcıyı bul ve şifresini güncelle
-        var mevcutKullanici = kullanicilar.FirstOrDefault(k => k.KullaniciAdi == kullaniciAdi);
-        if (mevcutKullanici != null)
-        {
-            mevcutKullanici.Sifre = yeniSifre;  // Yeni şifreyi ata
-            File.WriteAllText(dosyaYolu, JsonConvert.SerializeObject(kullanicilar, Formatting.Indented));  // Güncellenmiş veriyi dosyaya yaz
+        var kullanici = kullanicilar.Find(k => k.Email == email);
 
-            // E-posta gönderme
-            EmailServisi.SendPasswordResetEmail(email, yeniSifre);
+        if (kullanici != null)
+        {
+            string yeniSifre = GenerateRandomPassword();
+            kullanici.Sifre = yeniSifre;
+
+            File.WriteAllText(dosyaYolu, JsonConvert.SerializeObject(kullanicilar, Formatting.Indented));
+            EmailServisi.SendPasswordResetEmail(email, yeniSifre);  // E-posta gönderildi
         }
         else
         {
             Console.Beep();
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("Kullanıcı adı bulunamadı.");
+            Console.WriteLine("Bu e-posta adresine ait kullanıcı bulunamadı.");
             Console.ResetColor();
         }
     }
 
-    static async Task KullaniciIslemleri(Kullanici kullanici)
+    static string GenerateRandomPassword()
     {
-        BankaIslemleri banka = new BankaIslemleri();
+        var random = new Random();
+        return random.Next(100000, 999999).ToString();  // 6 haneli rastgele şifre
+    }
 
-        while (true)
+    static async Task KullaniciIslemleri(Kullanici mevcutKullanici)
+    {
+        var bankaIslemleri = new BankaIslemleri();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"Hoş geldiniz, {mevcutKullanici.KullaniciAdi}!");
+
+        bool cikis = false;
+        while (!cikis)
         {
-            
-            string menu = "\n1. Para yatır\n2. Para çek\n3. Bakiye görüntüle\n4. Döviz kuru sorgula\n5. Çıkış";
-
-            // Konsol ekranının genişliğini al
-            int screenWidth = Console.WindowWidth;
-
-            // Menü metnini satırlara ayır
-            string[] menuLines = menu.Split('\n');
-
-            // Menü metninin etrafını * ile süsle
-            string borderLine = new string('*', screenWidth); // Ekran genişliğine göre bir sınır çiz
-
-            // Üst sınır
-            Console.WriteLine(borderLine);
-
-            // Menü metnini her satıra hizalı olarak yazdır
-            foreach (var line in menuLines)
-            {
-                int spacesToAdd = (screenWidth - line.Length - 2) / 2; // Yazıyı ortalamak için ekleyeceğimiz boşluk
-                string centeredLine = new string(' ', spacesToAdd) + line + new string(' ', spacesToAdd);
-
-                // Sağdaki boşluk farkını dengele (eğer ekranın genişliği tek sayıda ise)
-                if (centeredLine.Length < screenWidth - 1)
-                {
-                    centeredLine += " ";
-                }
-
-                // Ortalanmış satırı * işaretleriyle süsle
-                Console.WriteLine("*" + centeredLine + "*");
-            }
-
-            // Alt sınır
-            Console.WriteLine(borderLine);
+            Console.WriteLine("\n1. Para Yatır\n2. Para Çek\n3. Bakiye Görüntüle\n4. Döviz Kuru \n5. Çıkış");
             string secim = Console.ReadLine();
 
             switch (secim)
             {
                 case "1":
-                    Console.WriteLine("Yatırmak istediğiniz tutarı girin:");
-                    double yatirTutar = Convert.ToDouble(Console.ReadLine());
-                    banka.ParaYatir(yatirTutar);
+                    Console.WriteLine("Yatırmak istediğiniz miktarı girin:");
+                    double miktarYatir = Convert.ToDouble(Console.ReadLine());
+                    bankaIslemleri.ParaYatir(miktarYatir, mevcutKullanici.Email);
                     break;
                 case "2":
-                    Console.WriteLine("Çekmek istediğiniz tutarı girin:");
-                    double cekTutar = Convert.ToDouble(Console.ReadLine());
-                    banka.ParaCek(cekTutar);
+                    Console.WriteLine("Çekmek istediğiniz miktarı girin:");
+                    double miktarCek = Convert.ToDouble(Console.ReadLine());
+                    bankaIslemleri.ParaCek(miktarCek, mevcutKullanici.Email); 
                     break;
                 case "3":
-                    banka.BakiyeGoruntule();
+                    bankaIslemleri.BakiyeGoruntule();
                     break;
                 case "4":
                     Console.WriteLine("Döviz kuru cinsini girin (örneğin: EUR, TRY, USD): ");
@@ -518,13 +589,15 @@ class Program
                     await DövizKuru.DövizKuruSorgula(paraBirimi);
                     break;
                 case "5":
-                    Console.WriteLine("Çıkılıyor...");
-                    return;
+                    cikis = true;
+                    break;
                 default:
+                    Console.Beep();
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Geçersiz seçim.");
+                    Console.ResetColor();
                     break;
             }
         }
     }
 }
-
